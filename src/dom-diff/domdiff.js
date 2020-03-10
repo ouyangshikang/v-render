@@ -5,10 +5,18 @@
 /**
  * #define定义补丁的类型
  */
-let PatchType = {
-    ChangeProps: 'ChangeProps',
-    ChangeInnerText: 'ChangeInnerText',
-    Replace: 'Replace'
+// let PatchType = {
+//     ChangeProps: 'ChangeProps',
+//     ChangeInnerText: 'ChangeInnerText',
+//     Replace: 'Replace'
+// }
+
+let newPatchType = {
+    AddELement: 'AddELement',
+    RemoveElement: 'RemoveElement',
+    ChangeElement: 'ChangeElement',
+    ReplaceElement: 'ReplaceElement',
+    ChangeLayout: 'ChangeLayout'
 }
 
 function domdiff(oldTree, newTree) {
@@ -19,15 +27,20 @@ function domdiff(oldTree, newTree) {
    return patches;
 }
 
-//深度优先遍历树
+// 深度优先遍历树
 function dfsWalk(oldNode, newNode, index, patches) {
     let curPatch = [];
     let nextIndex = index + 1;
+    // 没有新节点传入则什么都不做
     if (!newNode) {
-        //如果没有传入新节点则什么都不做
-    }else if (newNode.tag === oldNode.tag && newNode.key === oldNode.key){
-        //节点相同，开始判断属性(未写key时都是undefined，也是相等的)
-        let props = diffProps(oldNode.props, newNode.props);
+        if (oldNode) {
+            // 删除节点
+        }
+        return;
+    }
+    // 节点相同，开始判断属性
+    else if (newNode.$id === oldNode.$id) {
+        let props = diffProps(oldNode, newNode);
         if (props.length) {
             curPatch.push({type : PatchType.ChangeProps, props});
         }
@@ -43,8 +56,9 @@ function dfsWalk(oldNode, newNode, index, patches) {
                 }
             }
         }
-    }else{
-        //节点tagName或key不同
+    }
+    // 节点tagName或key不同
+    else if(newNode.$id) {
         curPatch.push({type : PatchType.Replace, node: newNode});
     }
 
@@ -71,36 +85,14 @@ function dfsWalk(oldNode, newNode, index, patches) {
  */
 function diffProps(oldProps, newProps) {
 
-    let propPatch = [];
-    //遍历旧属性检查删除和修改
+    let propPatch = {};
+    // 遍历旧属性变更(暂不考虑增加与删除)
     for(let prop of Object.keys(oldProps)){
-        //如果是节点删除
-       if (newProps[prop] === undefined) {
-          propPatch.push({
-              type:'DEL',
-              propName:prop
-          });
-       }else{
-         //节点存在则判断是否有变更
+         // 节点属性变更
          if (newProps[prop] !== oldProps[prop]) {
-            propPatch.push({
-                type:'MOD',
-                propName:prop,
-                value:newProps[prop]
-            });
+            propPatch = { ...propPatch, prop: newProps[prop]}
          }
        }
-    }
-
-    //遍历新属性检查新增属性
-    for(let prop of Object.keys(newProps)){
-        if (oldProps[prop] === undefined) {
-            propPatch.push({
-                type:'NEW',
-                propName:prop,
-                value:newProps[prop]
-            })
-        }
     }
 
     //返回属性检查的补丁包
